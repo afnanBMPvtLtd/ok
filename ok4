@@ -1,0 +1,73 @@
+@app.post("/api/candidate/submit-test")
+def submit_test(
+    submission: TestSubmission,
+    token_payload: dict = Depends(verify_user_token),
+):
+    """
+    Submit test answers from candidate (protected with user JWT)
+    APPROACH 3: Backend handles user_id from token, frontend doesn't send it
+    """
+    print(f"=== SUBMISSION DEBUG ===")
+    print(f"Token payload: {token_payload}")
+    print(f"Submission test_type: {submission.test_type}")
+    print(f"Number of answers: {len(submission.answers)}")
+
+    # Get the authenticated user ID from the token
+    authenticated_user_id = token_payload["sub"]
+    print(f"Authenticated user ID from token: {authenticated_user_id}")
+
+    # Get user details from database
+    user = users.find_one({"sub": authenticated_user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found in database")
+
+    print(f"User found: {user.get('name')} ({user.get('email')})")
+
+    # Create submission data using authenticated user ID
+    submission_data = {
+        "user_id": authenticated_user_id,
+        "user_name": user.get("name", "Unknown"),
+        "user_email": user.get("email", "Unknown"),
+        "test_type": submission.test_type,
+        "answers": submission.answers,
+        "duration": submission.duration,
+        "proctoring_data": submission.proctoring_data,
+        "submitted_at": datetime.utcnow(),
+    }
+
+    # Calculate score for aptitude tests
+    if submission.test_type == "aptitude":
+        score = calculate_aptitude_score(submission.answers)
+        submission_data["score"] = score
+        submission_data["total_questions"] = len(submission.answers)
+        submission_data["correct_answers"] = score
+        print(f"Calculated score: {score}/{len(submission.answers)}")
+
+    # Store in test_results collection
+    test_results = hive_admin["test_results"]
+    result = test_results.insert_one(submission_data)
+
+    print(f"✅ Test submitted successfully. ID: {result.inserted_id}")
+
+    # --------------------------------------------------------------------
+    # 🚀 SEND SUBMISSION EMAIL HERE (AFTER SAVING RESULT)
+    # --------------------------------------------------------------------
+    try:
+        send_submission_email(
+            candidate_email=user.get("email"),
+            candidate_name=user.get("name"),
+            assessment_type=submission.test_type.capitalize()
+        )
+        print("📩 Submission email sent successfully!")
+    except Exception as e:
+        print(f"❌ Failed to send submission email: {e}")
+    # --------------------------------------------------------------------
+
+    return {
+        "msg": "Test submitted successfully",
+        "submission_id": str(result.inserted_id),
+        "score": submission_data.get("score", 0),
+        "total_questions": submission_data.get("total_questions", 0),
+        "correct_answers": submission_data.get("correct_answers", 0),
+        "submitted_at": submission_data["submitted_at"],
+    }
