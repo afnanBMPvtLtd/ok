@@ -114,7 +114,7 @@ export default function TestSubmitted({ result, onGoHome }) {
     if (onGoHome) {
       onGoHome();
     } else {
-      navigate("/HomePage");
+      navigate("/hive/HomePage");
     }
   };
 
