@@ -1,0 +1,212 @@
+//src/Components/User/steps/TestSubmitted.jsx
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { CheckCircle, LayoutDashboard, Loader2 } from "lucide-react";
+
+export default function TestSubmitted({ result, onGoHome }) {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+
+  // ✅ NEW: total questions from aptitude-questions API
+  const [totalQuestions, setTotalQuestions] = useState(0);
+
+  // ✅ NEW: simple rating for user experience
+  const [rating, setRating] = useState(0);
+
+  useEffect(() => {
+    // Stop all media streams immediately when component mounts
+    stopAllMediaStreams();
+    
+    // ❌ Do NOT exit fullscreen here – keep page in fullscreen if it already is
+
+    // Prevent back navigation
+    preventBackNavigation();
+
+    // Fetch total questions from same API used in AptitudeTest.jsx
+    fetchTotalQuestions();
+
+    // Set loading to false after a brief delay to show the spinner
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1500);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("popstate", preventBackNavigation);
+    };
+  }, []);
+
+  const stopAllMediaStreams = () => {
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const tracks = [];
+
+        document.querySelectorAll("video").forEach((video) => {
+          if (video.srcObject) {
+            video.srcObject.getTracks().forEach((track) => {
+              tracks.push(track);
+            });
+          }
+        });
+
+        tracks.forEach((track) => {
+          track.stop();
+          track.enabled = false;
+        });
+
+        document.querySelectorAll("video").forEach((video) => {
+          video.srcObject = null;
+        });
+      }
+
+      console.log("All media streams stopped successfully");
+    } catch (error) {
+      console.error("Error stopping media streams:", error);
+    }
+  };
+
+  const preventBackNavigation = () => {
+    const handlePopState = (e) => {
+      e.preventDefault();
+      window.history.pushState(null, "", window.location.href);
+    };
+
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", handlePopState);
+  };
+
+  // ✅ NEW: same API as AptitudeTest.jsx to know total questions
+  const fetchTotalQuestions = async () => {
+    try {
+      const token = localStorage.getItem("hive_token");
+      if (!token) {
+        console.warn("No token found, cannot fetch total questions.");
+        return;
+      }
+
+      const res = await fetch("https://bandymoot.com/hive/v2/api/candidate/aptitude-questions", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        console.error("Failed to load questions for total count.");
+        return;
+      }
+
+      const data = await res.json();
+
+      if (Array.isArray(data.questions)) {
+        setTotalQuestions(data.questions.length);
+      } else {
+        console.warn("Questions response is not an array.");
+      }
+    } catch (err) {
+      console.error("Error fetching total questions:", err);
+    }
+  };
+
+  const handleGoToDashboard = () => {
+    stopAllMediaStreams();
+
+    if (onGoHome) {
+      onGoHome();
+    } else {
+      navigate("/HomePage");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-4 text-center">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="w-10 h-10 text-green-600 animate-spin" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Finalizing Test</h2>
+          <p className="text-gray-600 mb-4">
+            Stopping all media streams and preparing your summary...
+          </p>
+          <div className="flex justify-center space-x-2">
+            <div className="w-2 h-2 bg-green-600 rounded-full animate-bounce"></div>
+            <div
+              className="w-2 h-2 bg-green-600 rounded-full animate-bounce"
+              style={{ animationDelay: "0.1s" }}
+            ></div>
+            <div
+              className="w-2 h-2 bg-green-600 rounded-full animate-bounce"
+              style={{ animationDelay: "0.2s" }}
+            ></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Attempted & total are still available if you need them later
+  const attempted = result?.total_questions || 0;
+  const total = totalQuestions || attempted || 0;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center px-4">
+      <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl max-w-xl w-full p-8 sm:p-10 text-center border border-green-100">
+        {/* Icon + Heading */}
+        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle className="w-10 h-10 text-green-600" />
+        </div>
+
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2">
+          Test Submitted Successfully!
+        </h1>
+        <p className="text-gray-600 mb-6 max-w-md mx-auto">
+          Your aptitude assessment has been recorded securely.
+        </p>
+
+        {/* Rating Bar */}
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-6 mb-8 shadow-sm">
+          <p className="text-sm font-medium uppercase tracking-wide text-green-700 mb-2">
+            Rate Your Experience
+          </p>
+          <p className="text-gray-700 mb-4">
+            How was your overall test experience?
+          </p>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            {[1, 2, 3, 4, 5].map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setRating(value)}
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-xl transition ${
+                  rating >= value
+                    ? "bg-green-500 text-white"
+                    : "bg-white text-gray-400 border border-green-200 hover:bg-green-100 hover:text-green-700"
+                }`}
+              >
+                ★
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500">
+            {rating === 0 && "Tap a star to rate."}
+            {rating === 1 && "Very poor experience."}
+            {rating === 2 && "Could be better."}
+            {rating === 3 && "Okay experience."}
+            {rating === 4 && "Good experience!"}
+            {rating === 5 && "Excellent experience! 🎉"}
+          </p>
+        </div>
+
+        {/* Single Action Button */}
+        <button
+          onClick={handleGoToDashboard}
+          className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-green-600 text-white rounded-full hover:bg-green-700 active:bg-green-800 transition-colors font-semibold w-full sm:w-auto shadow-md"
+        >
+          <LayoutDashboard className="w-5 h-5" />
+          Go to Dashboard
+        </button>
+      </div>
+    </div>
+  );
+}
