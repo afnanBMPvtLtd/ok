@@ -1,0 +1,115 @@
+# backend/SendMail.py
+
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime
+from typing import Optional
+
+#from database_init_.ConfigAppPassword import (
+EMAIL_123="syphermagnum@gmail.com"
+APP_PASSWORD_123="xvdr hvto xlwr uvve"
+#)
+
+# ---- ==== SETTINGS ==== ----
+SMTP_SERVER = "smtp.gmail.com"              # From Gmail
+SMTP_PORT = 587                             # Mail uses 587 Port
+SMTP_USER = EMAIL_123                       # G-Mail
+SMPT_PASSWORD = APP_PASSWORD_123            # App Password
+
+def send_invite_email(
+    candidate_email: str,
+    candidate_name: str,  # ADD THIS PARAMETER
+    invite_token: str = None, 
+    expire_time: datetime = None,
+    assessment_type: str = "Coding Round"
+) -> None:
+
+    """
+    Send invite email via SMTP
+    """
+
+    msg = MIMEMultipart()
+    msg["From"] = SMTP_USER
+    msg["To"] = candidate_email
+    msg["Subject"] = f"Invitation: {assessment_type} Assessment"
+
+    body = f"""
+    Dear {candidate_name},
+
+    You have been invited to complete an assessment.
+
+    Assessment Type: {assessment_type}
+    Invite Token: {invite_token}
+    Expires At: {expire_time.strftime('%Y-%m-%d %H:%M:%S UTC') if expire_time else 'N/A'}
+
+    GET STARTED:
+    1. Visit: https://www.bandymoot.com/hive/HomePage
+    2. Login through your GMAIL Account (Use the same email address {candidate_email} to verify your identity)
+    3. Enter your invitation code: {invite_token}
+
+    ASSESSMENT GUIDELINES:
+    • Ensure you have a stable internet connection
+    • Use a modern browser (Chrome, Firefox, or Edge)
+    • Complete the assessment in one sitting
+    • The assessment will automatically submit when time expires
+
+    TECHNICAL SUPPORT:
+    If you encounter any technical issues during the assessment, please contact our support team immediately.
+
+    We look forward to reviewing your submission!
+
+    Best regards,
+    The Hive Assessment Team
+    Hive Recruitment Platform
+    """
+
+    msg.attach(MIMEText(body, "plain"))
+    
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMPT_PASSWORD)
+            server.sendmail(SMTP_USER, candidate_email, msg.as_string())
+            print(f"Invite email sent successfully to {candidate_name} ({candidate_email})")
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+        raise  # Re-raise the exception to see the actual error
+def send_submission_email(
+    candidate_email: str,
+    candidate_name: str,
+    assessment_type: str = "Aptitude"
+) -> None:
+    """
+    Send email after test submission
+    """
+    msg = MIMEMultipart()
+    msg["From"] = SMTP_USER
+    msg["To"] = candidate_email
+    msg["Subject"] = f"{assessment_type} Assessment Submitted Successfully"
+
+    body = f"""
+    Dear {candidate_name},
+
+    Your {assessment_type} assessment has been successfully submitted.
+
+    Thank you for completing the test.
+
+    Our team will review your submission and get back to you shortly.
+
+    Best regards,
+    The Hive Assessment Team
+    Hive Recruitment Platform
+    """
+
+    msg.attach(MIMEText(body, "plain"))
+
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMPT_PASSWORD)
+            server.sendmail(SMTP_USER, candidate_email, msg.as_string())
+            print(f"Submission email sent successfully to {candidate_name} ({candidate_email})")
+    except Exception as e:
+        print(f"Failed to send SUBMISSION email: {e}")
+        raise
